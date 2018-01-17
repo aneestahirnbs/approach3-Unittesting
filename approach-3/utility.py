@@ -39,3 +39,10 @@ class Utility:
                     range(len(old_columns)),
                     raw_data)
         return df
+
+
+    def get_latest_and_previous_data(self,historical_data, verison_key, primary_key):
+        historical_part_data = historical_data.withColumn("row_num", row_number().over(
+            Window.partitionBy(primary_key).orderBy(desc(verison_key))))
+        latests = historical_part_data.where(historical_part_data.row_num == 1)
+        return latests.drop('row_num')

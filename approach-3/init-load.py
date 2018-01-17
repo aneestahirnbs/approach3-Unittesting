@@ -35,7 +35,7 @@ class InitLoad:
 
             data_with_columns.cache()
             non_current_df = data_with_columns
-            daily_uniq_data_df = get_latest_and_previous_data(data_with_columns,
+            daily_uniq_data_df = self.utility.get_latest_and_previous_data(data_with_columns,
                                                               '{0}_{1}'.format(DAILY_DATA, argv.verison_key),
                                                               '{0}_{1}'.format(DAILY_DATA, argv.primary_key))
             daily_data_df = daily_uniq_data_df.withColumn('{0}_{1}'.format(DAILY_DATA, EPOCH_TIME_COL_NAME),
@@ -102,11 +102,11 @@ class InitLoad:
     #     return renamed_cols
 
 
-    def get_latest_and_previous_data(historical_data, verison_key, primary_key):
-        historical_part_data = historical_data.withColumn("row_num", row_number().over(
-            Window.partitionBy(primary_key).orderBy(desc(verison_key))))
-        latests = historical_part_data.where(historical_part_data.row_num == 1)
-        return latests.drop('row_num')
+    # def get_latest_and_previous_data(historical_data, verison_key, primary_key):
+    #     historical_part_data = historical_data.withColumn("row_num", row_number().over(
+    #         Window.partitionBy(primary_key).orderBy(desc(verison_key))))
+    #     latests = historical_part_data.where(historical_part_data.row_num == 1)
+    #     return latests.drop('row_num')
 
 
     ##########################################   UTILITY 	################################################
