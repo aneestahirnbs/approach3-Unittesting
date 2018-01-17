@@ -1,0 +1,46 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.dynamicframe import DynamicFrame
+from awsglue.job import Job
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+
+from pyspark.sql.types import StringType
+from datetime import datetime, date, time, timedelta
+from pyspark.sql.types import IntegerType
+
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+ver_inc = udf(lambda x: x+1,IntegerType())
+
+archive_table  = glueContext.create_dynamic_frame.from_catalog(database="data-versioning",table_name="dataversion_s_csv").rename_field('id','s_id').rename_field('date','s_date')
+daily_table = glueContext.create_dynamic_frame.from_catalog(database="data-versioning",table_name="dataversion_nc_csv")
+daily_df = daily_table.toDF()
+archive_df = archive_table.toDF()
+
+join_trsf = daily_df.join(archive_df, daily_df.id == archive_df.s_id,'left_outer')
+
+version_trsf = join_trsf.withColumn('inc_version', ver_inc(coalesce(join_trsf['version'], lit(0))))
+
+dyf = DynamicFrame.fromDF(version_trsf, glueContext, 'nested').drop_fields(['s_id','s_date'])
+
+glueContext.write_dynamic_frame.from_options(frame = dyf,connection_type = "s3",connection_options = {"path": "s3://aws-glue-prc/destination_data/data-versioning-result"},format = "json")
+
+job.commit()
+
+
+join_trsf = daily_data_df.join(existed_data,(existed_data.existing_data_property_id == daily_data_df.daily_data_property_id) ,'left_outer')
+
+
+    #new_partitions_name = all_data.select('{0}_{1}'.format(DAILY_DATA, argv.partition_key)).distinct().collect()
+
+    #new_partitions_path = argv.processed_bucket_path + str(new_partitions_name) + '*'
+
