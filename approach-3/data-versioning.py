@@ -46,9 +46,9 @@ class DataVersioning:
 
         loaded_existing_data = sql_context.read.load(partition_paths, format=argv.file_format)
         loaded_existing_data.cache()
-        col_list = self.ref_utilityget_columns_with_table_prefix(EXISTING_DATA)
+        col_list = self.ref_utility.get_columns_with_table_prefix(EXISTING_DATA)
         col_list.extend(['{0} AS {1}_{2}'.format(EPOCH_TIME_COL_NAME, EXISTING_DATA, EPOCH_TIME_COL_NAME)])
-        existed_data = self.get_frame_with_columns(loaded_existing_data, [EPOCH_TIME_COL_NAME]) \
+        existed_data = self.utility.get_frame_with_columns(loaded_existing_data, [EPOCH_TIME_COL_NAME]) \
             .selectExpr(*tuple(col_list))
 
         existing_non_match = existed_data.join(daily_data_df, (
@@ -100,11 +100,15 @@ class DataVersioning:
         #bucket_folders = bucket_path.split('/')[1:]
         #dest_prfix = '/'.join(bucket_folders)
         client = boto3.client('s3')
-        response = client.list_objects(Bucket=bucket_name, Prefix=dest_prfix)
-        response_content = response['Contents']
-        remote_keys = [item['Key'] for item in response_content]
+
+        response, temp_response_content, temp_remote_keys = self.ref_utility.list_obj_return_keys_s3(client,
+                                                                                                     bucket_name,
+                                                                                                     dest_prfix)
+        # response = client.list_objects(Bucket=bucket_name, Prefix=dest_prfix)
+        # response_content = response['Contents']
+        # remote_keys = [item['Key'] for item in response_content]
         # Refactoring needed
-        self.ref_utility.delete_objects_with_key_from_s3(client, partition_names, remote_keys, bucket_name)
+        self.ref_utility.delete_objects_with_key_from_s3(client, partition_names, temp_remote_keys, bucket_name)
         #matching_keys = []
         #for remote_key in remote_keys:
         #    containing_list = [s for s in partition_names if s in remote_key]
@@ -130,14 +134,14 @@ class DataVersioning:
         #temp_bucket_name = temp_bucket_path.split('/')[0]
         #temp_bucket_folders = temp_bucket_path.split('/')[1:]
         #temp_prefix = '/'.join(temp_bucket_folders)
-        response = client.list_objects(Bucket=temp_bucket_name, Prefix=temp_prefix)
-        temp_response_content = response['Contents']
-        temp_remote_keys = [item['Key'] for item in temp_response_content]
-        matching_keys = []
-        s3 = boto3.resource('s3')
+        response,temp_response_content,temp_remote_keys=self.ref_utility.list_obj_return_keys_s3(client,temp_bucket_name,temp_prefix)
+        # response = client.list_objects(Bucket=temp_bucket_name, Prefix=temp_prefix)
+        # temp_response_content = response['Contents']
+        # temp_remote_keys = [item['Key'] for item in temp_response_content]
+        # matching_keys = []
+        #s3 = boto3.resource('s3')
         # Refactoring needed
-
-        self.ref_utility.copy_data_with_key_to_s3(temp_remote_keys, temp_bucket_name, s3, bucket_name, dest_prfix)
+        self.ref_utility.copy_data_with_key_to_s3(temp_remote_keys, temp_bucket_name, bucket_name, dest_prfix)
         #for temp_key in temp_remote_keys:
         #    copy_source = {
         #        'Bucket': temp_bucket_name,
@@ -149,14 +153,14 @@ class DataVersioning:
         #        print('::AMMAR::' + key_to_copy)
         #        s3.meta.client.copy(copy_source, bucket_name, key_to_copy)
 
-    def get_frame_with_columns(self, raw_data, additional_columns=[]):
-        old_columns = raw_data.schema.names[:]
-        new_columns = self.ref_utility.get_file_schema('dummy', 'dummy')[:]
-
-        new_columns.extend(additional_columns)
-        df = reduce(lambda data, idx: data.withColumnRenamed(old_columns[idx], new_columns[idx]), range(len(old_columns)),
-                    raw_data)
-        return df
+    # def get_frame_with_columns(self, raw_data, additional_columns=[]):
+    #     old_columns = raw_data.schema.names[:]
+    #     new_columns = self.ref_utility.get_file_schema('dummy', 'dummy')[:]
+    #
+    #     new_columns.extend(additional_columns)
+    #     df = reduce(lambda data, idx: data.withColumnRenamed(old_columns[idx], new_columns[idx]), range(len(old_columns)),
+    #                 raw_data)
+    #     return df
 
 
 

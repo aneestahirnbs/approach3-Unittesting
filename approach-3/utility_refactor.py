@@ -1,3 +1,4 @@
+import boto3
 
 class RefactorUtility:
 
@@ -10,13 +11,18 @@ class RefactorUtility:
         return renamed_cols
 
     def extract_bucket_directories(self,folder_path):
-        temp_bucket_path = folder_path.split('//')[1]
-        temp_bucket_name = temp_bucket_path.split('/')[0]
-        temp_bucket_folders = temp_bucket_path.split('/')[1:]
-        temp_prefix = '/'.join(temp_bucket_folders)
-        return temp_bucket_path,temp_bucket_name,temp_bucket_folders,temp_prefix
+        if isinstance(folder_path, str):
+            temp_bucket_path = folder_path.split('//')[1]
+            temp_bucket_name = temp_bucket_path.split('/')[0]
+            temp_bucket_folders = temp_bucket_path.split('/')[1:]
+            temp_prefix = '/'.join(temp_bucket_folders)
+            return temp_bucket_path,temp_bucket_name,temp_bucket_folders,temp_prefix
+        else:
+            raise TypeError("Input should be a string:")
 
-    def copy_data_with_key_to_s3(self,temp_remote_keys,temp_bucket_name,s3_resource,bucket_name,dest_prfix):
+    def copy_data_with_key_to_s3(self,temp_remote_keys,temp_bucket_name,bucket_name,dest_prfix):
+
+        s3 = boto3.resource('s3')
         for temp_key in temp_remote_keys:
             copy_source = {
                 'Bucket': temp_bucket_name,
@@ -26,7 +32,7 @@ class RefactorUtility:
             if (len(folders) >= 3):
                 key_to_copy = '{0}{1}/{2}'.format(dest_prfix, folders[-2], folders[-1])
                 print('::AMMAR::' + key_to_copy)
-                s3_resource.meta.client.copy(copy_source, bucket_name, key_to_copy)
+                s3.meta.client.copy(copy_source, bucket_name, key_to_copy)
         pass
 
 
@@ -54,6 +60,12 @@ class RefactorUtility:
         )
         pass
 
+    def list_obj_return_keys_s3(self,client,temp_bucket_name,temp_prefix):
+
+        response = client.list_objects(Bucket=temp_bucket_name, Prefix=temp_prefix)
+        temp_response_content = response['Contents']
+        temp_remote_keys = [item['Key'] for item in temp_response_content]
+        return response,temp_response_content,temp_remote_keys
 
 
 
